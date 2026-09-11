@@ -4,9 +4,20 @@ from ..utils.grid_utils import manhattan_distance
 
 class GoalAssigner:
 
-    def assign(self, robots: list[Robot], goals: list[Position]):
+    def assign(
+        self,
+        robots: list[Robot],
+        goals: list[Position]
+    ):
         """
-        Assign unique goals to robots using greedy nearest-distance matching.
+        Assign unique goals to robots using:
+        1. Task priority
+        2. Deadline feasibility
+        3. Distance
+
+        Higher-priority robots get assignment preference.
+        If a deadline is specified, goals that can be reached
+        within the deadline are preferred.
         """
 
         assignments = {}
@@ -14,13 +25,73 @@ class GoalAssigner:
         remaining_robots = robots.copy()
         remaining_goals = goals.copy()
 
-        while remaining_robots and remaining_goals:
+        # ------------------------------------------------------
+        # STEP 1: Sort robots by priority
+        # ------------------------------------------------------
 
-            best_robot = None
+        # Higher priority is handled first.
+        # If priority is equal, earlier deadline is preferred.
+        remaining_robots.sort(
+            key=lambda robot: (
+                -robot.priority,
+                robot.deadline
+                if robot.deadline is not None
+                else float("inf")
+            )
+        )
+
+        # ------------------------------------------------------
+        # STEP 2: Assign goals
+        # ------------------------------------------------------
+
+        for robot in remaining_robots:
+
+            if not remaining_goals:
+                assignments[robot.id] = None
+                continue
+
             best_goal = None
             best_distance = float("inf")
 
-            for robot in remaining_robots:
+            # --------------------------------------------------
+            # Find goals that satisfy the deadline
+            # --------------------------------------------------
+
+            deadline_goals = []
+
+            if robot.deadline is not None:
+
+                for goal in remaining_goals:
+
+                    distance = manhattan_distance(
+                        (robot.start.row, robot.start.col),
+                        (goal.row, goal.col)
+                    )
+
+                    if distance <= robot.deadline:
+                        deadline_goals.append(
+                            (goal, distance)
+                        )
+
+            # --------------------------------------------------
+            # If deadline-feasible goals exist,
+            # choose the nearest one.
+            # --------------------------------------------------
+
+            if deadline_goals:
+
+                for goal, distance in deadline_goals:
+
+                    if distance < best_distance:
+
+                        best_distance = distance
+                        best_goal = goal
+
+            # --------------------------------------------------
+            # Otherwise choose nearest available goal.
+            # --------------------------------------------------
+
+            else:
 
                 for goal in remaining_goals:
 
@@ -30,18 +101,16 @@ class GoalAssigner:
                     )
 
                     if distance < best_distance:
+
                         best_distance = distance
-                        best_robot = robot
                         best_goal = goal
 
-            assignments[best_robot.id] = best_goal
+            # --------------------------------------------------
+            # Store assignment
+            # --------------------------------------------------
 
-            remaining_robots.remove(best_robot)
+            assignments[robot.id] = best_goal
+
             remaining_goals.remove(best_goal)
-
-        # If there are more robots than goals,
-        # the remaining robots receive no goal.
-        for robot in remaining_robots:
-            assignments[robot.id] = None
 
         return assignments

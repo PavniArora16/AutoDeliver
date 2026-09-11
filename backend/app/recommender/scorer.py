@@ -17,10 +17,12 @@ class AlgorithmScorer:
 
         if not metrics:
             return {
-                "scores": {},
-                "recommended_algorithm": None,
-                "reason": "No successful benchmark results available."
-            }
+        "scores": {},
+        "recommended_algorithm": None,
+        "reason": "No successful benchmark results available.",
+        "features": self.features,
+        "benchmark_metrics": {}
+    }
 
         # -----------------------------------------------------
         # Find reference values
@@ -148,11 +150,12 @@ class AlgorithmScorer:
         )
 
         return {
-            "scores": final_scores,
-            "recommended_algorithm":
-                recommended_algorithm,
-            "reason": reason
-        }
+    "scores": final_scores,
+    "recommended_algorithm": recommended_algorithm,
+    "reason": reason,
+    "features": self.features,
+    "benchmark_metrics": metrics
+}
 
     # ---------------------------------------------------------
     # Aggregate results across robots

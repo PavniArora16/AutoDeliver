@@ -12,6 +12,18 @@ class Robot(BaseModel):
     start: Position
     goal: Position | None = None
 
+    # Battery system
+    battery_capacity: float = 100.0
+    battery_level: float = 100.0
+    energy_per_step: float = 1.0
+
+    # Robot state
+    status: str = "idle"
+
+    # Task management
+    priority: int = 1
+    deadline: int | None = None
+
 
 class Warehouse(BaseModel):
     name: str = "Warehouse"

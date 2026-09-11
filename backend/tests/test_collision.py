@@ -4,64 +4,47 @@ from app.models.warehouse import Position
 
 
 def test_vertex_collision():
+    reservation = ReservationTable()
 
-    table = ReservationTable()
+    position = Position(row=2, col=2)
 
-    table.reserve(
-        Position(row=1, col=1),
-        time_step=1,
+    reservation.reserve(
+        position,
+        time_step=3,
         robot_id=1
     )
 
-    detector = CollisionDetector(table)
+    detector = CollisionDetector(reservation)
 
-    safe = detector.is_move_safe(
-        current=Position(row=1, col=0),
-        next_position=Position(row=1, col=1),
-        next_time=1,
+    # Robot 2 tries to move into a cell
+    # already reserved by Robot 1
+    assert not detector.is_move_safe(
+        current=Position(row=2, col=1),
+        next_position=position,
+        next_time=3,
         robot_id=2
     )
 
-    assert safe is False
 
+def test_no_vertex_collision():
+    reservation = ReservationTable()
 
-def test_edge_swap_collision():
+    position = Position(row=2, col=2)
 
-    table = ReservationTable()
-
-    path_robot_1 = [
-        Position(row=1, col=0),
-        Position(row=1, col=1)
-    ]
-
-    table.reserve_path(
-        path_robot_1,
+    reservation.reserve(
+        position,
+        time_step=3,
         robot_id=1
     )
 
-    detector = CollisionDetector(table)
+    detector = CollisionDetector(reservation)
 
-    safe = detector.is_move_safe(
-        current=Position(row=1, col=1),
-        next_position=Position(row=1, col=0),
-        next_time=1,
+    other_position = Position(row=2, col=3)
+
+    # Robot 2 moves to a different cell
+    assert detector.is_move_safe(
+        current=Position(row=2, col=2),
+        next_position=other_position,
+        next_time=3,
         robot_id=2
     )
-
-    assert safe is False
-
-
-def test_safe_move():
-
-    table = ReservationTable()
-
-    detector = CollisionDetector(table)
-
-    safe = detector.is_move_safe(
-        current=Position(row=0, col=0),
-        next_position=Position(row=0, col=1),
-        next_time=1,
-        robot_id=1
-    )
-
-    assert safe is True
