@@ -3,14 +3,14 @@ from fastapi import FastAPI
 from .api.pathfinding import router as pathfinding_router
 from .api.warehouse import router as warehouse_router
 from .api.recommendation import router as recommendation_router
-
+from .api.simulation import router as simulation_router
 
 app = FastAPI(
     title="AutoDeliver",
     description="Intelligent Multi-Agent Warehouse Robot Simulator",
     version="1.0.0"
 )
-
+app.include_router(simulation_router)
 
 app.include_router(
     pathfinding_router
