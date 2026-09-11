@@ -33,6 +33,9 @@ def get_neighbors(grid, position):
 
     Each result is:
         (neighbor_position, movement_cost)
+
+    neighbor_position is a tuple:
+        (row, col)
     """
 
     row, col = position
@@ -44,13 +47,18 @@ def get_neighbors(grid, position):
         new_row = row + dr
         new_col = col + dc
 
-        if is_walkable(grid, new_row, new_col):
+        if is_inside(grid, new_row, new_col):
 
-            cost = grid[new_row][new_col]
+            if is_walkable(grid, new_row, new_col):
 
-            neighbors.append(
-                ((new_row, new_col), cost)
-            )
+                cost = grid[new_row][new_col]
+
+                neighbors.append(
+                    (
+                        (new_row, new_col),
+                        cost
+                    )
+                )
 
     return neighbors
 
