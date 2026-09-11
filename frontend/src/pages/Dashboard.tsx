@@ -1,71 +1,318 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  getSampleWarehouse,
+  runFullAnalysis,
+} from "../services/api";
 
-const warehouse = [
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, -1, -1, -1, 1, 1, 1, 1, -1, 1, 1],
-  [1, 1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1],
-  [1, -1, -1, 1, -1, 1, 1, 1, 1, -1, -1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, -1, 1, 1, -1, -1, -1, 1, 1, 1, 1, 1],
-  [1, -1, 1, 1, 1, 1, 1, 1, -1, -1, 1, 1],
-  [1, 1, 1, -1, 1, 1, 1, 1, 1, 1, 1, 1],
-  [1, 1, 1, -1, 1, 1, -1, -1, -1, 1, 1, 1],
-  [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-];
+type Position = {
+  row: number;
+  col: number;
+};
 
-const robots = [
-  { id: 1, row: 0, col: 0, goal: "(0, 11)" },
-  { id: 2, row: 9, col: 0, goal: "(9, 11)" },
-];
+type Robot = {
+  id: number;
+  start: Position;
+  goal?: Position | null;
+  battery_level?: number;
+  battery_capacity?: number;
+  status?: string;
+};
 
-const goals = [
-  { row: 0, col: 11 },
-  { row: 9, col: 11 },
-];
+type Warehouse = {
+  name: string;
+  rows: number;
+  cols: number;
+  grid: number[][];
+  robots: Robot[];
+  goals: Position[];
+  charging_stations: Position[];
+};
 
-const chargers = [
-  { row: 4, col: 5 },
-  { row: 9, col: 6 },
-];
+type AlgorithmResult = {
+  found?: boolean;
+
+  // Individual benchmark result
+  path_cost?: number;
+  nodes_expanded?: number;
+  max_frontier_size?: number;
+  runtime_ms?: number;
+
+  // Backend benchmark summary
+  average_path_cost?: number;
+  average_path_length?: number;
+  average_nodes_expanded?: number;
+  average_frontier_size?: number;
+  average_runtime_ms?: number;
+  success_rate?: number;
+};
+
+type AnalysisData = {
+  recommendation?: any;
+  benchmark?: any;
+  features?: any;
+};
 
 export default function Dashboard() {
+  const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisData | null>(null);
   const [algorithm, setAlgorithm] = useState("A*");
+  const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
+  const [error, setError] = useState("");
+  const [lastRun, setLastRun] = useState<Date | null>(null);
+  const [analysisMessage, setAnalysisMessage] = useState("");
+
+  // --------------------------------------------------
+  // LOAD REAL DATA FROM BACKEND
+  // --------------------------------------------------
+
+  useEffect(() => {
+    loadDashboard();
+  }, []);
+
+  async function loadDashboard() {
+    try {
+      setLoading(true);
+      setError("");
+
+      const warehouseData = await getSampleWarehouse();
+      setWarehouse(warehouseData);
+
+      const analysisData = await runFullAnalysis(warehouseData);
+      setAnalysis(analysisData);
+    } catch (err) {
+      console.error(err);
+      setError(
+        "Could not connect to the AutoDeliver backend. Make sure FastAPI is running on port 8000."
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --------------------------------------------------
+  // HELPERS
+  // --------------------------------------------------
+
+  const getRecommendationName = () => {
+    if (!analysis?.recommendation) return "—";
+
+    const recommendation = analysis.recommendation;
+
+    if (typeof recommendation === "string") {
+      return recommendation;
+    }
+
+    return (
+      recommendation.algorithm ||
+      recommendation.recommended_algorithm ||
+      recommendation.name ||
+      "—"
+    );
+  };
+
+  const getRecommendationReason = () => {
+    if (!analysis?.recommendation) return "Run the analysis to generate a recommendation.";
+
+    const recommendation = analysis.recommendation;
+
+    if (typeof recommendation === "string") {
+      return `The recommender selected ${recommendation} for this warehouse configuration.`;
+    }
+
+    return (
+      recommendation.explanation ||
+      recommendation.reason ||
+      recommendation.message ||
+      `The recommender selected ${getRecommendationName()} for this warehouse configuration.`
+    );
+  };
+
+  const getAlgorithmResults = (): Record<string, AlgorithmResult> => {
+    if (!analysis?.benchmark) return {};
+
+    const benchmark = analysis.benchmark;
+
+    // Backend returns algorithm-wise averages inside benchmark.summary
+    if (benchmark.summary) {
+      return benchmark.summary;
+    }
+
+    return {};
+  };
+
+  const getResultForAlgorithm = (algo: string): AlgorithmResult => {
+    const results = getAlgorithmResults();
+
+    const possibleNames =
+      algo === "A*"
+        ? ["A*", "astar", "a_star", "AStar"]
+        : algo === "UCS"
+          ? ["UCS", "ucs", "uniform_cost_search"]
+          : ["GBFS", "gbfs", "greedy_best_first_search"];
+
+    for (const name of possibleNames) {
+      if (results[name]) {
+        return results[name];
+      }
+    }
+
+    return {};
+  };
+
+  const selectedResult = getResultForAlgorithm(algorithm);
+  const pathCost = selectedResult.average_path_cost;
+  const nodesExpanded = selectedResult.average_nodes_expanded;
+  const frontierSize = selectedResult.average_frontier_size;
+  const runtimeMs = selectedResult.average_runtime_ms;
+
+
+  const formatNumber = (value: any, decimals = 2) => {
+    if (value === undefined || value === null) return "—";
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) return "—";
+
+    return number.toFixed(decimals);
+  };
+
+  const formatRuntime = (value: any) => {
+    if (value === undefined || value === null) return "—";
+
+    const number = Number(value);
+
+    if (Number.isNaN(number)) return "—";
+
+    return `${number.toFixed(2)} ms`;
+  };
 
   const cellType = (row: number, col: number) => {
-    if (robots.some((r) => r.row === row && r.col === col)) {
+    if (!warehouse) return "normal";
+
+    if (
+      warehouse.robots.some(
+        (robot) =>
+          robot.start.row === row &&
+          robot.start.col === col
+      )
+    ) {
       return "robot";
     }
 
-    if (goals.some((g) => g.row === row && g.col === col)) {
+    if (
+      warehouse.goals.some(
+        (goal) => goal.row === row && goal.col === col
+      )
+    ) {
       return "goal";
     }
 
-    if (chargers.some((c) => c.row === row && c.col === col)) {
+    if (
+      warehouse.charging_stations.some(
+        (station) =>
+          station.row === row &&
+          station.col === col
+      )
+    ) {
       return "charger";
     }
 
-    if (warehouse[row][col] === -1) {
+    if (warehouse.grid[row][col] === -1) {
       return "obstacle";
     }
 
     return "normal";
   };
 
-  const runSimulation = () => {
-    setRunning(true);
+  // --------------------------------------------------
+  // SIMULATION BUTTON
+  // --------------------------------------------------
 
-    setTimeout(() => {
-      setRunning(false);
-    }, 1200);
-  };
+const runAnalysis = async () => {
+  console.log("RUN ANALYSIS BUTTON CLICKED");
+
+  if (!warehouse) {
+    console.log("No warehouse data available");
+    return;
+  }
+
+  try {
+    setRunning(true);
+    setError("");
+
+    console.log("Sending request to backend...");
+
+    const result = await runFullAnalysis(warehouse);
+
+    console.log("Analysis response received:", result);
+
+    setAnalysis(result);
+    setLastRun(new Date());
+  } catch (err) {
+    console.error("ANALYSIS ERROR:", err);
+    setError("Simulation/analysis failed.");
+  } finally {
+    setRunning(false);
+  }
+};
+
+  // --------------------------------------------------
+  // LOADING
+  // --------------------------------------------------
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🤖</div>
+          <h2 className="text-xl font-semibold">
+            Loading AutoDeliver...
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Connecting to the backend and running analysis
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------
+  // ERROR
+  // --------------------------------------------------
+
+  if (error || !warehouse) {
+    return (
+      <div className="min-h-screen bg-[#070b14] text-white flex items-center justify-center p-6">
+        <div className="max-w-md rounded-2xl border border-red-900/50 bg-[#0d1320] p-8 text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+
+          <h2 className="text-xl font-bold">
+            Backend Connection Error
+          </h2>
+
+          <p className="mt-3 text-sm text-slate-400">
+            {error || "Warehouse data could not be loaded."}
+          </p>
+
+          <button
+            onClick={loadDashboard}
+            className="mt-6 rounded-lg bg-blue-600 px-5 py-2 text-sm font-semibold hover:bg-blue-500"
+          >
+            Retry Connection
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const recommendation = getRecommendationName();
 
   return (
     <div className="min-h-screen bg-[#070b14] text-white">
 
       {/* HEADER */}
       <header className="border-b border-slate-800 bg-[#0a0f1c] px-8 py-5">
-
         <div className="flex items-center justify-between">
 
           <div className="flex items-center gap-4">
@@ -88,11 +335,10 @@ export default function Dashboard() {
 
           <div className="flex items-center gap-2 text-xs text-slate-400">
             <span className="h-2 w-2 rounded-full bg-green-500 shadow-lg shadow-green-500/50"></span>
-            System Ready
+            Backend Connected
           </div>
 
         </div>
-
       </header>
 
 
@@ -110,7 +356,8 @@ export default function Dashboard() {
               </h2>
 
               <p className="mt-1 text-xs text-slate-500">
-                10 × 12 grid • 2 autonomous robots
+                {warehouse.rows} x {warehouse.cols} grid •{" "}
+                {warehouse.robots.length} autonomous robots
               </p>
             </div>
 
@@ -121,7 +368,7 @@ export default function Dashboard() {
           </div>
 
 
-          {/* GRID CARD */}
+          {/* GRID */}
           <div className="rounded-2xl border border-slate-800 bg-[#0d1320] p-5 shadow-2xl">
 
             <div className="mx-auto max-w-[850px]">
@@ -129,11 +376,11 @@ export default function Dashboard() {
               <div
                 className="grid overflow-hidden rounded-lg border border-slate-700"
                 style={{
-                  gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+                  gridTemplateColumns: `repeat(${warehouse.cols}, minmax(0, 1fr))`,
                 }}
               >
 
-                {warehouse.map((row, r) =>
+                {warehouse.grid.map((row, r) =>
                   row.map((_, c) => {
 
                     const type = cellType(r, c);
@@ -230,11 +477,24 @@ export default function Dashboard() {
 
 
             <button
-              onClick={runSimulation}
-              className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-xs font-semibold shadow-lg shadow-blue-900/30 transition hover:-translate-y-0.5"
+              onClick={runAnalysis}
+              disabled={running}
+              className="rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-xs font-semibold shadow-lg shadow-blue-900/30 transition hover:-translate-y-0.5 disabled:opacity-60"
             >
-              {running ? "⏳ Running..." : "▶ Run Simulation"}
+              {running ? "⏳ Running..." : "▶ Run Analysis"}
             </button>
+
+            {lastRun && (
+              <p className="mt-2 text-[10px] text-slate-500">
+                Last analyzed: {lastRun.toLocaleTimeString()}
+              </p>
+            )}
+
+            {analysisMessage && (
+              <p className="mt-2 text-[10px] text-green-400">
+                ✓ {analysisMessage}
+              </p>
+            )}
 
           </div>
 
@@ -269,7 +529,7 @@ export default function Dashboard() {
                 </h3>
 
                 <p className="text-[10px] text-slate-500">
-                  Heuristic guided search
+                  Pathfinding algorithm
                 </p>
               </div>
 
@@ -288,7 +548,7 @@ export default function Dashboard() {
               </span>
 
               <span className="text-[9px] text-blue-400">
-                LIVE
+                BACKEND
               </span>
 
             </div>
@@ -296,42 +556,28 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-2 gap-3">
 
-              <Metric title="Path Cost" value="20" subtitle="total cost" />
+              <Metric
+                title="Path Cost"
+                value={formatNumber(pathCost)}
+                subtitle="average cost"
+              />
 
               <Metric
                 title="Nodes Expanded"
-                value={
-                  algorithm === "GBFS"
-                    ? "21"
-                    : algorithm === "UCS"
-                    ? "109"
-                    : "93"
-                }
-                subtitle="search effort"
+                value={formatNumber(nodesExpanded, 0)}
+                subtitle="average search effort"
               />
 
               <Metric
                 title="Max Frontier"
-                value={
-                  algorithm === "GBFS"
-                    ? "15"
-                    : algorithm === "UCS"
-                    ? "12"
-                    : "19"
-                }
-                subtitle="memory"
+                value={formatNumber(frontierSize, 0)}
+                subtitle="average frontier"
               />
 
               <Metric
                 title="Runtime"
-                value={
-                  algorithm === "GBFS"
-                    ? "0.20 ms"
-                    : algorithm === "UCS"
-                    ? "0.76 ms"
-                    : "0.86 ms"
-                }
-                subtitle="execution"
+                value={formatRuntime(runtimeMs)}
+                subtitle="average execution"
               />
 
             </div>
@@ -355,7 +601,7 @@ export default function Dashboard() {
                 </p>
 
                 <h3 className="text-lg font-bold text-purple-300">
-                  GBFS
+                  {recommendation}
                 </h3>
 
               </div>
@@ -363,13 +609,8 @@ export default function Dashboard() {
             </div>
 
             <p className="mt-4 text-[11px] leading-5 text-slate-400">
-              For this warehouse configuration, GBFS provides the fastest
-              search while maintaining the same path cost.
+              {getRecommendationReason()}
             </p>
-
-            <div className="mt-3 text-[10px] text-purple-300">
-              ✓ Strong heuristic quality
-            </div>
 
           </div>
 
@@ -392,7 +633,7 @@ export default function Dashboard() {
 
             <div className="space-y-2">
 
-              {robots.map((robot) => (
+              {warehouse.robots.map((robot) => (
 
                 <div
                   key={robot.id}
@@ -410,13 +651,16 @@ export default function Dashboard() {
                     </p>
 
                     <p className="text-[9px] text-slate-500">
-                      Goal → {robot.goal}
+                      Goal →{" "}
+                      {robot.goal
+                        ? `(${robot.goal.row}, ${robot.goal.col})`
+                        : "Not assigned"}
                     </p>
 
                   </div>
 
                   <span className="text-[8px] text-green-400">
-                    READY
+                    {robot.status || "READY"}
                   </span>
 
                 </div>
@@ -428,12 +672,22 @@ export default function Dashboard() {
           </div>
 
 
-          <button className="w-full rounded-xl border border-slate-700 bg-[#111827] py-3 text-xs font-semibold text-slate-300 transition hover:border-blue-500 hover:text-white">
+          {/* COMPARE */}
+          <button
+            onClick={() => {
+              setAlgorithm("A*");
+            }}
+            className="w-full rounded-xl border border-slate-700 bg-[#111827] py-3 text-xs font-semibold text-slate-300 transition hover:border-blue-500 hover:text-white"
+          >
             📊 Compare All Algorithms
           </button>
 
-          <button className="w-full py-2 text-xs text-slate-500 hover:text-slate-300">
-            ↑ Import Warehouse JSON
+
+          <button
+            onClick={loadDashboard}
+            className="w-full py-2 text-xs text-slate-500 hover:text-slate-300"
+          >
+            ↻ Refresh Backend Analysis
           </button>
 
         </aside>
@@ -462,6 +716,10 @@ export default function Dashboard() {
   );
 }
 
+
+// --------------------------------------------------
+// METRIC COMPONENT
+// --------------------------------------------------
 
 function Metric({
   title,

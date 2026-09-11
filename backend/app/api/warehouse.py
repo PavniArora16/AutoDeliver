@@ -16,7 +16,7 @@ def get_sample_warehouse():
 
     file_path = (
         Path(__file__).resolve()
-        .parents[2]
+        .parents[3]
         / "data"
         / "generated"
         / "sample_warehouse.json"
