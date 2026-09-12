@@ -135,7 +135,7 @@ class MultiAgentPlanner:
                 direct_path
             )
 
-            if battery_manager.can_complete(direct_path):
+            if robot.battery_level > BatteryManager.LOW_BATTERY_THRESHOLD and battery_manager.can_complete(direct_path):
 
                 # --------------------------------------------------
                 # Battery is sufficient
@@ -399,9 +399,20 @@ class MultiAgentPlanner:
             # COMBINE ROBOT -> CHARGER -> GOAL
             # ==================================================
 
+            # --------------------------------------------------
+            # Add charging dwell time
+            # --------------------------------------------------
+            CHARGING_STEPS = 5
+
+            charging_wait = [charging_station] * CHARGING_STEPS
+
+            # Robot reaches charger first,
+            # stays there while charging,
+            # then continues to the goal.
             complete_path = (
-                path_to_station +
-                path_after_charge
+                path_to_station
+                + charging_wait
+                + path_after_charge
             )
 
             planned_paths[robot.id] = complete_path

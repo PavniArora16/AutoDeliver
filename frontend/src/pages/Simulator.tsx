@@ -203,7 +203,29 @@ export default function Simulator() {
 
   const currentState =
     timeline[currentTime];
+    const simulationProgress =
+    timeline.length > 1
+    ? (currentTime / (timeline.length - 1)) * 100
+    : 0;
+    const visitedCells = useMemo(() => {
+    const visited = new Set<string>();
 
+    if (!timeline.length) {
+      return visited;
+    }
+
+    for (let i = 0; i <= currentTime; i++) {
+      const step = timeline[i];
+
+      step?.robots.forEach(robot => {
+        visited.add(
+          `${robot.step.position.row}-${robot.step.position.col}`
+        );
+      });
+    }
+
+    return visited;
+  }, [timeline, currentTime]);
 
   // ==========================================================
   // ROBOT STATES
@@ -421,6 +443,13 @@ export default function Simulator() {
               </span>
             </p>
 
+            <div className="mt-2 h-1.5 w-32 overflow-hidden rounded-full bg-gray-800">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-500"
+                style={{ width: `${simulationProgress}%` }}
+              />
+            </div>      
+
           </div>
 
         </div>
@@ -519,6 +548,9 @@ export default function Simulator() {
                     const isObstacle =
                       cell === -1;
 
+                    const isVisited =
+                      visitedCells.has(`${rowIndex}-${colIndex}`);
+
                     return (
 
                       <div
@@ -530,10 +562,12 @@ export default function Simulator() {
                           relative
                           transition-all duration-300
                           ${
-                            isObstacle
-                              ? "bg-[#334155]"
+                          isObstacle
+                            ? "bg-[#334155]"
+                            : isVisited
+                              ? "bg-blue-950/40"
                               : "bg-[#101a2a]"
-                          }
+                        }
                         `}
                       >
 
@@ -573,26 +607,29 @@ export default function Simulator() {
                         {/* ROBOT */}
 
                         {robot && (
-
-                          <div
-                            className={`
-                              text-xl
-                              z-10
-                              transition-all duration-500
-                              ${
-                                robotStates[robot.id]
-                                  ?.is_charging
-                                  ? "scale-125"
-                                  : ""
-                              }
-                            `}
-                          >
-
-                            🤖
-
-                          </div>
-
-                        )}
+                        <div
+                          className={`
+                            relative z-10
+                            flex h-8 w-8
+                            items-center justify-center
+                            rounded-full
+                            bg-blue-600
+                            text-xs
+                            font-bold
+                            shadow-lg
+                            transition-all duration-500
+                            ${
+                            robotStates[robot.id]?.is_charging
+                              ? "scale-125 ring-2 ring-yellow-400"
+                              : robotStates[robot.id]?.status === "waiting"
+                                ? "ring-2 ring-orange-400"
+                                : ""
+                          }
+                          `}
+                        >
+                          R{robot.id}
+                        </div>
+                      )}
 
                       </div>
 
@@ -709,17 +746,18 @@ export default function Simulator() {
 
                         <div className="mt-4">
 
-                          <div className="flex justify-between text-xs mb-1">
-
-                            <span className="text-gray-500">
-                              Battery
-                            </span>
-
-                            <span>
-                              {battery}%
-                            </span>
-
-                          </div>
+                          <div
+                            className={`h-full transition-all duration-500 ${
+                              battery <= 20
+                                ? "bg-red-500"
+                                : battery <= 50
+                                ? "bg-yellow-500"
+                                : "bg-green-500"
+                            }`}
+                            style={{
+                              width: `${battery}%`
+                            }}
+                          />
 
                           <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
 

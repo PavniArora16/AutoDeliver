@@ -50,6 +50,8 @@ type AnalysisData = {
   recommendation?: any;
   benchmark?: any;
   features?: any;
+  multi_agent?: any;
+  simulation?: any;
 };
 
 export default function Dashboard() {
@@ -211,15 +213,25 @@ export default function Dashboard() {
     return number.toFixed(decimals);
   };
 
-  const formatRuntime = (value: any) => {
-    if (value === undefined || value === null) return "—";
+const formatRuntime = (value: any) => {
+  if (value === undefined || value === null) return "—";
 
-    const number = Number(value);
+  const number = Number(value);
 
-    if (Number.isNaN(number)) return "—";
+  if (Number.isNaN(number)) return "—";
 
-    return `${number.toFixed(2)} ms`;
-  };
+  return `${number.toFixed(2)} ms`;
+};
+
+const getFeatureValue = (name: string) => {
+  const value = analysis?.features?.[name];
+
+  if (value === undefined || value === null) {
+    return "—";
+  }
+
+  return Number(value).toFixed(2);
+};
 
   const cellType = (row: number, col: number) => {
     if (!warehouse) return "normal";
@@ -644,6 +656,42 @@ const runAnalysis = async () => {
           {/* METRICS */}
           <div className="rounded-2xl border border-slate-800 bg-[#0d1320] p-5">
 
+
+            {analysis?.multi_agent?.makespan !== undefined && (
+              <div className="mb-4 rounded-xl border border-blue-900/50 bg-blue-950/20 p-3">
+                <p className="text-[9px] text-slate-500">
+                  TOTAL MAKESPAN
+                </p>
+                <p className="mt-1 text-xl font-bold text-blue-400">
+                  {analysis.multi_agent.makespan} steps
+                </p>
+                <p className="text-[9px] text-slate-600">
+                  Time required for all robots to complete their plans
+                </p>
+              </div>
+            )}
+
+
+            {analysis?.simulation && (
+              <div className="mb-4 rounded-xl border border-green-900/50 bg-green-950/10 p-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] text-slate-500">
+                      SIMULATION STATUS
+                    </p>
+
+                    <p className="mt-1 text-sm font-semibold text-green-400">
+                      {analysis.simulation.success
+                        ? "✓ Simulation Completed"
+                        : "⚠ Simulation Incomplete"}
+                    </p>
+                  </div>
+
+                  <span className="text-xl">⚡</span>
+                </div>
+              </div>
+            )}
+
             <div className="mb-4 flex justify-between">
 
               <span className="text-xs text-slate-400">
@@ -685,6 +733,59 @@ const runAnalysis = async () => {
 
             </div>
 
+          </div>
+
+
+          {/* WAREHOUSE INTELLIGENCE */}
+          <div className="rounded-2xl border border-slate-800 bg-[#0d1320] p-5">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <span className="text-xs text-slate-400">
+                  Warehouse Intelligence
+                </span>
+                <p className="mt-1 text-[9px] text-slate-600">
+                  Structural features used by the recommender
+                </p>
+              </div>
+
+              <span className="text-[9px] text-purple-400">
+                ANALYZED
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+
+              <Metric
+                title="Obstacle Density"
+                value={getFeatureValue("obstacle_density")}
+                subtitle="warehouse complexity"
+              />
+
+              <Metric
+                title="Branching Factor"
+                value={getFeatureValue("avg_branching_factor")}
+                subtitle="average neighbors"
+              />
+
+              <Metric
+                title="Dead-End Ratio"
+                value={getFeatureValue("dead_end_ratio")}
+                subtitle="navigation difficulty"
+              />
+
+              <Metric
+                title="Cost Variance"
+                value={getFeatureValue("edge_cost_variance")}
+                subtitle="traversal variation"
+              />
+
+              <Metric
+                title="Heuristic Quality"
+                value={getFeatureValue("heuristic_quality")}
+                subtitle="guidance accuracy"
+              />
+
+            </div>
           </div>
 
 

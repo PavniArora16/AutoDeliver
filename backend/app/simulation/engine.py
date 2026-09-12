@@ -33,7 +33,18 @@ class SimulationEngine:
 
             if is_charging:
 
-                battery = battery_capacity
+                # First arrival at charger does not instantly charge.
+                # Battery increases only while the robot waits at the charger.
+                if (
+                    time_step > 0
+                    and path[time_step - 1] == position
+                ):
+                    charge_amount = battery_capacity * 0.20
+                    battery = min(
+                        battery_capacity,
+                        battery + charge_amount
+                    )
+
                 status = "charging"
 
             else:

@@ -43,6 +43,8 @@ export default function Editor() {
   const [selectedCost, setSelectedCost] = useState(1);
   const [message, setMessage] = useState("");
 
+  const [batteryLevel, setBatteryLevel] = useState(20);
+
   useEffect(() => {
     loadWarehouse();
   }, []);
@@ -62,17 +64,32 @@ export default function Editor() {
       localStorage.getItem("autodeliver_warehouse");
 
     if (savedWarehouse) {
-      setWarehouse(JSON.parse(savedWarehouse));
-      return;
+        const savedData = JSON.parse(savedWarehouse);
+
+        setWarehouse(savedData);
+
+        if (savedData.robots?.length > 0) {
+            setBatteryLevel(
+            savedData.robots[0].battery_level ?? 100
+            );
+        }
+
+        return;
     }
 
     const data = await getSampleWarehouse();
 
     setWarehouse(data);
 
+    if (data.robots?.length > 0) {
+    setBatteryLevel(
+        data.robots[0].battery_level ?? 100
+    );
+    }
+
     localStorage.setItem(
-      "autodeliver_warehouse",
-      JSON.stringify(data)
+    "autodeliver_warehouse",
+    JSON.stringify(data)
     );
   } catch (error) {
     console.error(error);
@@ -180,37 +197,51 @@ export default function Editor() {
     }
 
     if (tool === "robot") {
-      const alreadyRobot = newWarehouse.robots.some(
+    const existingRobotIndex = newWarehouse.robots.findIndex(
         (robot) =>
-          robot.start.row === row &&
-          robot.start.col === col
-      );
+        robot.start.row === row &&
+        robot.start.col === col
+    );
 
-      if (!alreadyRobot) {
-        const nextId =
-          newWarehouse.robots.length === 0
-            ? 1
-            : Math.max(
-                ...newWarehouse.robots.map(
-                  (robot) => robot.id
-                )
-              ) + 1;
+    // If robot already exists, update its battery
+    if (existingRobotIndex !== -1) {
+        newWarehouse.robots[existingRobotIndex] = {
+        ...newWarehouse.robots[existingRobotIndex],
+        battery_level: batteryLevel,
+        };
 
-        newWarehouse.robots.push({
-          id: nextId,
-          start: { row, col },
-          goal: null,
-          battery_capacity: 100,
-          battery_level: 100,
-          energy_per_step: 1,
-          status: "idle",
-          priority: 1,
-          deadline: null,
-        });
-      }
-
-      updateWarehouse(newWarehouse);
+        updateWarehouse(newWarehouse);
+        setMessage(
+        `Robot ${newWarehouse.robots[existingRobotIndex].id} battery set to ${batteryLevel}%.`
+        );
+        return;
     }
+
+    // Otherwise create a new robot
+    const nextId =
+        newWarehouse.robots.length === 0
+        ? 1
+        : Math.max(
+            ...newWarehouse.robots.map(
+                (robot) => robot.id
+            )
+            ) + 1;
+
+    newWarehouse.robots.push({
+        id: nextId,
+        start: { row, col },
+        goal: null,
+        battery_capacity: 100,
+        battery_level: batteryLevel,
+        energy_per_step: 1,
+        status: "idle",
+        priority: 1,
+        deadline: null,
+    });
+
+  updateWarehouse(newWarehouse);
+}
+
   }
 
   function resetWarehouse() {
@@ -588,6 +619,49 @@ const newWarehouse: Warehouse = {
               </p>
             </div>
             
+            <div className="rounded-2xl border border-slate-800 bg-[#0d1320] p-5">
+                <label className="text-xs text-slate-400">
+                    Robot Battery Level (%)
+                </label>
+
+                <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={batteryLevel}
+                    onChange={(e) => {
+                        const value = Math.max(
+                        0,
+                        Math.min(100, Number(e.target.value))
+                        );
+
+                        setBatteryLevel(value);
+
+                        if (warehouse && warehouse.robots.length > 0) {
+                        const newWarehouse: Warehouse = {
+                            ...warehouse,
+                            robots: warehouse.robots.map((robot, index) =>
+                            index === 0
+                                ? {
+                                    ...robot,
+                                    battery_level: value,
+                                }
+                                : robot
+                            ),
+                        };
+
+                        updateWarehouse(newWarehouse);
+                        }
+                    }}
+  className="mt-2 w-full rounded-lg border border-slate-700 bg-[#111827] px-3 py-2 text-sm text-white outline-none"
+/>
+
+                <p className="mt-2 text-[10px] text-slate-500">
+                    Set to 20% or below to force charging before the task.
+                </p>
+                </div>
+
+
             <button
                 onClick={analyzeWarehouse}
                 className="w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 py-3 text-xs font-semibold text-white shadow-lg shadow-green-900/20 hover:-translate-y-0.5"

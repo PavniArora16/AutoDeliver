@@ -227,11 +227,13 @@ def simulation_step(
         )
 
         if is_charging:
-
-            battery = robot.battery_capacity
-
+            # Charge only while staying on the charging station
+            if current == previous:
+                battery = min(
+                    robot.battery_capacity,
+                    battery + robot.battery_capacity * 0.20
+                )
         elif current != previous:
-
             battery = max(
                 0.0,
                 battery - robot.energy_per_step
@@ -345,11 +347,13 @@ def simulation_state(
             )
 
             if is_charging:
-
-                battery = robot.battery_capacity
-
+                # Charge only while staying on the charging station
+                if current == previous:
+                    battery = min(
+                        robot.battery_capacity,
+                        battery + robot.battery_capacity * 0.20
+                    )
             elif current != previous:
-
                 battery = max(
                     0.0,
                     battery - robot.energy_per_step
