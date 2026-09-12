@@ -1,7 +1,7 @@
 from ..algorithms.astar import AStar
 from ..algorithms.ucs import UCS
 from ..algorithms.gbfs import GBFS
-
+from ..multi_agent.assignment import GoalAssigner
 
 class AlgorithmBenchmark:
 
@@ -19,9 +19,21 @@ class AlgorithmBenchmark:
 
         results = []
 
+        # Assign warehouse goals to robots
+        # using the same assignment logic as the multi-agent planner.
+        assigner = GoalAssigner()
+
+        assignments = assigner.assign(
+            self.warehouse.robots,
+            self.warehouse.goals
+        )
+
         for robot in self.warehouse.robots:
 
-            if robot.goal is None:
+            goal_position = assignments.get(robot.id)
+
+            # No goal assigned to this robot
+            if goal_position is None:
                 continue
 
             start = (
@@ -30,8 +42,8 @@ class AlgorithmBenchmark:
             )
 
             goal = (
-                robot.goal.row,
-                robot.goal.col
+                goal_position.row,
+                goal_position.col
             )
 
             for algorithm in self.algorithms:

@@ -1,11 +1,10 @@
 import { useState } from "react";
 import Dashboard from "./pages/Dashboard";
 import Simulator from "./pages/Simulator";
+import Editor from "./pages/Editor";
 
 function App() {
-  const [page, setPage] = useState<"dashboard" | "simulator">(
-    "dashboard"
-  );
+  const [page, setPage] = useState<  "dashboard" | "simulator" | "editor">("dashboard");
 
   return (
     <div className="min-h-screen">
@@ -47,21 +46,32 @@ function App() {
               Simulator
             </button>
 
+            <button
+              onClick={() => setPage("editor")}
+              className={`px-4 py-2 rounded-lg text-sm transition ${
+                page === "editor"
+                  ? "bg-blue-600 text-white"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              Editor
+            </button>
+
           </div>
 
         </div>
       </nav>
 
       {/* Page */}
-      <div className="pt-16">
-
-        {page === "dashboard" ? (
-          <Dashboard />
-        ) : (
-          <Simulator />
-        )}
-
-      </div>
+        <div className="pt-16">
+          {page === "dashboard" ? (
+            <Dashboard />
+          ) : page === "simulator" ? (
+            <Simulator />
+          ) : (
+            <Editor />
+          )}
+        </div>
 
     </div>
   );

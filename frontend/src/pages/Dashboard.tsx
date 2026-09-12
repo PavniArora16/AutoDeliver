@@ -79,7 +79,28 @@ export default function Dashboard() {
       setWarehouse(warehouseData);
 
       const analysisData = await runFullAnalysis(warehouseData);
+
+      console.log("========== FULL ANALYSIS RESPONSE ==========");
+      console.log(analysisData);
+
+      console.log("BENCHMARK:", analysisData?.benchmark);
+
+      console.log(
+        "BENCHMARK RESULTS:",
+        JSON.stringify(analysisData?.benchmark?.results, null, 2)
+      );
+
+      console.log(
+        "BENCHMARK SUMMARY:",
+        JSON.stringify(analysisData?.benchmark?.summary, null, 2)
+      );
+
+      console.log("RECOMMENDATION:", analysisData?.recommendation);
+      console.log("MULTI AGENT:", analysisData?.multi_agent);
+      console.log("============================================");
+
       setAnalysis(analysisData);
+
     } catch (err) {
       console.error(err);
       setError(
