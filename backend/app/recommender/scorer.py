@@ -12,21 +12,16 @@ class AlgorithmScorer:
     # ---------------------------------------------------------
 
     def calculate_scores(self):
-
         metrics = self._aggregate_metrics()
 
         if not metrics:
             return {
-        "scores": {},
-        "recommended_algorithm": None,
-        "reason": "No successful benchmark results available.",
-        "features": self.features,
-        "benchmark_metrics": {}
-    }
-
-        # -----------------------------------------------------
-        # Find reference values
-        # -----------------------------------------------------
+                "scores": {},
+                "recommended_algorithm": None,
+                "reason": "No successful benchmark results available.",
+                "features": self.features,
+                "benchmark_metrics": {}
+            }
 
         costs = [
             data["avg_path_cost"]
@@ -47,9 +42,44 @@ class AlgorithmScorer:
         min_nodes = min(nodes)
         min_runtime = min(runtimes)
 
-        # -----------------------------------------------------
-        # Calculate final scores
-        # -----------------------------------------------------
+        # ------------------------------------------------------
+        # WAREHOUSE STRUCTURE
+        # ------------------------------------------------------
+
+        obstacle_density = self.features.get(
+            "obstacle_density", 0
+        )
+
+        branching = self.features.get(
+            "avg_branching_factor", 2
+        )
+
+        dead_end_ratio = self.features.get(
+            "dead_end_ratio", 0
+        )
+
+        cost_variance = self.features.get(
+            "edge_cost_variance", 0
+        )
+
+        heuristic_quality = self.features.get(
+            "heuristic_quality", 0
+        )
+
+        # ------------------------------------------------------
+        # NORMALIZED ENVIRONMENT DIFFICULTY
+        # ------------------------------------------------------
+
+        complexity = (
+            obstacle_density * 0.40
+            + dead_end_ratio * 0.30
+            + max(0, 3 - branching) / 3 * 0.30
+        )
+
+        cost_pressure = min(
+            cost_variance / 5,
+            1
+        )
 
         final_scores = {}
 
@@ -70,29 +100,19 @@ class AlgorithmScorer:
                 data["avg_runtime_ms"]
             )
 
-            # -------------------------------------------------
-            # Dynamic weighting
-            # -------------------------------------------------
+            # --------------------------------------------------
+            # DYNAMIC WEIGHTS
+            # --------------------------------------------------
 
-            cost_variance = self.features.get(
-                "edge_cost_variance",
-                0
+            cost_weight = (
+                0.40
+                + cost_pressure * 0.15
             )
 
-            heuristic_quality = self.features.get(
-                "heuristic_quality",
-                0
+            node_weight = (
+                0.30
+                + complexity * 0.10
             )
-
-            # Path cost becomes more important when
-            # warehouse movement costs vary significantly.
-            cost_weight = 0.40
-
-            if cost_variance > 1:
-                cost_weight = 0.50
-
-            # Speed/efficiency receives the remaining weight.
-            node_weight = 0.35
 
             runtime_weight = (
                 1
@@ -100,26 +120,41 @@ class AlgorithmScorer:
                 - node_weight
             )
 
-            # A high-quality heuristic makes A*/GBFS
-            # more useful, so slightly reward them.
-            heuristic_bonus = 0
-
-            if algorithm in ["A*", "GBFS"]:
-                heuristic_bonus = (
-                    heuristic_quality * 5
-                )
-
             score = (
                 cost_score * cost_weight
-                +
-                node_score * node_weight
-                +
-                runtime_score * runtime_weight
+                + node_score * node_weight
+                + runtime_score * runtime_weight
             ) * 100
 
-            score += heuristic_bonus
+            # --------------------------------------------------
+            # STRUCTURE-AWARE ALGORITHM BONUS
+            # --------------------------------------------------
 
-            # Keep score between 0 and 100
+           # --------------------------------------------------
+# STRUCTURE-AWARE ALGORITHM BONUS
+# --------------------------------------------------
+
+            # --------------------------------------------------
+            # STRUCTURE-AWARE ALGORITHM BONUS
+            # --------------------------------------------------
+
+            if algorithm == "A*":
+                # A* is preferred for complex warehouse layouts.
+                score += complexity * 15
+
+                # Strong heuristic quality benefits A*.
+                score += heuristic_quality * 5
+
+            elif algorithm == "UCS":
+                # UCS is preferred when traversal costs vary.
+                score += cost_pressure * 10
+
+            elif algorithm == "GBFS":
+                # GBFS is preferred mainly for simple/open layouts.
+                simplicity = 1 - complexity
+                score += simplicity * 3
+
+            # Keep every algorithm's score between 0 and 100.
             score = min(
                 max(score, 0),
                 100
@@ -130,18 +165,10 @@ class AlgorithmScorer:
                 2
             )
 
-        # -----------------------------------------------------
-        # Select winner
-        # -----------------------------------------------------
-
         recommended_algorithm = max(
             final_scores,
             key=final_scores.get
         )
-
-        # -----------------------------------------------------
-        # Generate explanation
-        # -----------------------------------------------------
 
         reason = self._generate_reason(
             recommended_algorithm,
@@ -150,12 +177,12 @@ class AlgorithmScorer:
         )
 
         return {
-    "scores": final_scores,
-    "recommended_algorithm": recommended_algorithm,
-    "reason": reason,
-    "features": self.features,
-    "benchmark_metrics": metrics
-}
+            "scores": final_scores,
+            "recommended_algorithm": recommended_algorithm,
+            "reason": reason,
+            "features": self.features,
+            "benchmark_metrics": metrics
+        }
 
     # ---------------------------------------------------------
     # Aggregate results across robots
