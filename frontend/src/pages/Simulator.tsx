@@ -100,9 +100,15 @@ export default function Simulator() {
         setLoading(true);
         setError("");
 
-        // Get warehouse from backend
-        const warehouseData =
-          await getSampleWarehouse();
+       // Get the latest warehouse from Editor
+        const savedWarehouse =
+          localStorage.getItem("autodeliver_warehouse");
+
+        const warehouseData = savedWarehouse
+          ? JSON.parse(savedWarehouse)
+          : await getSampleWarehouse();
+
+        console.log("SIMULATOR WAREHOUSE:", warehouseData);
 
         setWarehouse(warehouseData);
 
@@ -114,8 +120,13 @@ export default function Simulator() {
 
         if (!timelineData.success) {
 
+          console.error(
+            "TIMELINE RESPONSE:",
+            timelineData
+          );
+
           throw new Error(
-            "Simulation could not be generated"
+            JSON.stringify(timelineData)
           );
 
         }
@@ -128,10 +139,12 @@ export default function Simulator() {
 
       } catch (err) {
 
-        console.error(err);
+        console.error("SIMULATION ERROR:", err);
 
         setError(
-          "Could not connect to the AutoDeliver backend."
+          err instanceof Error
+            ? err.message
+            : "Simulation could not be generated."
         );
 
       } finally {
@@ -435,7 +448,7 @@ export default function Simulator() {
                 </h3>
 
                 <p className="text-xs text-gray-500">
-                  Backend-generated simulation
+                  Simulation based on your edited warehouse
                 </p>
 
               </div>

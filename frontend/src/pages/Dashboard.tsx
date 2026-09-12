@@ -75,10 +75,21 @@ export default function Dashboard() {
       setLoading(true);
       setError("");
 
-      const warehouseData = await getSampleWarehouse();
+      const savedWarehouse =
+        localStorage.getItem("autodeliver_warehouse");
+
+      const warehouseData = savedWarehouse
+        ? JSON.parse(savedWarehouse)
+        : await getSampleWarehouse();
+
+      console.log("DASHBOARD WAREHOUSE:", warehouseData);
+
       setWarehouse(warehouseData);
 
-      const analysisData = await runFullAnalysis(warehouseData);
+      const analysisData =
+        await runFullAnalysis(warehouseData);
+
+      setAnalysis(analysisData);
 
       console.log("========== FULL ANALYSIS RESPONSE ==========");
       console.log(analysisData);

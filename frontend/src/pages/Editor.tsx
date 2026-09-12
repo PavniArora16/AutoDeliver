@@ -47,15 +47,38 @@ export default function Editor() {
     loadWarehouse();
   }, []);
 
-  async function loadWarehouse() {
-    try {
-      const data = await getSampleWarehouse();
-      setWarehouse(data);
-    } catch (error) {
-      console.error(error);
-      setMessage("Could not load warehouse.");
+
+  function updateWarehouse(newWarehouse: Warehouse) {
+  setWarehouse(newWarehouse);
+  localStorage.setItem(
+    "autodeliver_warehouse",
+    JSON.stringify(newWarehouse)
+  );
+}
+
+    async function loadWarehouse() {
+  try {
+    const savedWarehouse =
+      localStorage.getItem("autodeliver_warehouse");
+
+    if (savedWarehouse) {
+      setWarehouse(JSON.parse(savedWarehouse));
+      return;
     }
+
+    const data = await getSampleWarehouse();
+
+    setWarehouse(data);
+
+    localStorage.setItem(
+      "autodeliver_warehouse",
+      JSON.stringify(data)
+    );
+  } catch (error) {
+    console.error(error);
+    setMessage("Could not load warehouse.");
   }
+}
 
   function isPosition(list: Position[], row: number, col: number) {
     return list.some(
@@ -90,7 +113,7 @@ export default function Editor() {
           ? selectedCost
           : -1;
 
-      setWarehouse(newWarehouse);
+      updateWarehouse(newWarehouse);
       return;
     }
 
@@ -117,7 +140,7 @@ export default function Editor() {
           )
       );
 
-      setWarehouse(newWarehouse);
+      updateWarehouse(newWarehouse);
       return;
     }
 
@@ -134,7 +157,7 @@ export default function Editor() {
         newWarehouse.goals.push({ row, col });
       }
 
-      setWarehouse(newWarehouse);
+      updateWarehouse(newWarehouse);
       return;
     }
 
@@ -152,7 +175,7 @@ export default function Editor() {
         });
       }
 
-      setWarehouse(newWarehouse);
+      updateWarehouse(newWarehouse);
       return;
     }
 
@@ -186,7 +209,7 @@ export default function Editor() {
         });
       }
 
-      setWarehouse(newWarehouse);
+      updateWarehouse(newWarehouse);
     }
   }
 
@@ -226,7 +249,7 @@ export default function Editor() {
         throw new Error("Grid dimensions do not match");
       }
 
-      setWarehouse(data);
+      updateWarehouse(data);
       setMessage("Warehouse imported successfully.");
     } catch (error) {
       console.error(error);
@@ -312,7 +335,7 @@ const newWarehouse: Warehouse = {
   ],
 };
 
-    setWarehouse(newWarehouse);
+    updateWarehouse(newWarehouse);
     setMessage("Random warehouse generated.");
     }
 
