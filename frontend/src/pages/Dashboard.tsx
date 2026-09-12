@@ -61,6 +61,7 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [lastRun, setLastRun] = useState<Date | null>(null);
   const [analysisMessage, setAnalysisMessage] = useState("");
+  const [showComparison, setShowComparison] = useState(false);
 
   // --------------------------------------------------
   // LOAD REAL DATA FROM BACKEND
@@ -193,6 +194,7 @@ export default function Dashboard() {
   };
 
   const selectedResult = getResultForAlgorithm(algorithm);
+  const allResults = getAlgorithmResults();
   const pathCost = selectedResult.average_path_cost;
   const nodesExpanded = selectedResult.average_nodes_expanded;
   const frontierSize = selectedResult.average_frontier_size;
@@ -375,7 +377,7 @@ const runAnalysis = async () => {
 
 
       {/* MAIN */}
-      <main className="mx-auto grid max-w-[1450px] grid-cols-1 gap-6 p-6 xl:grid-cols-[1fr_370px]">
+      <main className="mx-auto max-w-[1450px] p-6">
 
         {/* LEFT */}
         <section>
@@ -532,8 +534,77 @@ const runAnalysis = async () => {
 
         </section>
 
-
+        
         {/* RIGHT SIDEBAR */}
+        {showComparison && (
+  <div className="mb-6 rounded-2xl border border-slate-800 bg-[#0d1320] p-5">
+    <div className="mb-4">
+      <h3 className="text-sm font-semibold">
+        Algorithm Comparison
+      </h3>
+      <p className="mt-1 text-[10px] text-slate-500">
+        Benchmark results for the current warehouse
+      </p>
+    </div>
+
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      {["A*", "UCS", "GBFS"].map((algo) => {
+        const result = getResultForAlgorithm(algo);
+
+        return (
+          <div
+            key={algo}
+            className={`rounded-xl border p-4 ${
+              recommendation === algo
+                ? "border-purple-500 bg-purple-950/20"
+                : "border-slate-800 bg-[#101827]"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <h4 className="font-bold">{algo}</h4>
+
+              {recommendation === algo && (
+                <span className="text-[9px] text-purple-300">
+                  ★ RECOMMENDED
+                </span>
+              )}
+            </div>
+
+            <div className="mt-4 space-y-2 text-[10px] text-slate-400">
+              <div className="flex justify-between">
+                <span>Path Cost</span>
+                <span className="text-white">
+                  {formatNumber(result.average_path_cost)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Nodes</span>
+                <span className="text-white">
+                  {formatNumber(result.average_nodes_expanded, 0)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Frontier</span>
+                <span className="text-white">
+                  {formatNumber(result.average_frontier_size, 0)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Runtime</span>
+                <span className="text-white">
+                  {formatRuntime(result.average_runtime_ms)}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+)}
         <aside className="space-y-4">
 
           {/* ALGORITHM */}
@@ -706,12 +777,12 @@ const runAnalysis = async () => {
 
           {/* COMPARE */}
           <button
-            onClick={() => {
-              setAlgorithm("A*");
-            }}
-            className="w-full rounded-xl border border-slate-700 bg-[#111827] py-3 text-xs font-semibold text-slate-300 transition hover:border-blue-500 hover:text-white"
-          >
-            📊 Compare All Algorithms
+          onClick={() => {
+            setShowComparison(!showComparison);
+          }}
+          className="w-full rounded-xl border border-slate-700 bg-[#111827] py-3 text-xs font-semibold text-slate-300 transition hover:border-blue-500 hover:text-white"
+        >
+          📊 Compare All Algorithms
           </button>
 
 
